@@ -39,7 +39,7 @@ Telegram bot API, macOS LaunchAgents.
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/<your-username>/botletter.git
+git clone https://github.com/landigf/botletter.git
 cd botletter
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
