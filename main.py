@@ -353,8 +353,16 @@ def cmd_remind(args):
         print(f"⏭  No newsletter for today ({date}). Skipping reminder.")
         return
 
+    # Idempotency: only remind once per day
+    reminder_file = ROOT / config["output"]["data_directory"] / "last_reminder.txt"
+    if reminder_file.exists() and reminder_file.read_text().strip() == date:
+        print(f"⏭  Already reminded for {date}. Skipping.")
+        return
+
     from bot import send_reminder
     send_reminder()
+    reminder_file.parent.mkdir(parents=True, exist_ok=True)
+    reminder_file.write_text(date)
     print("☀️ Morning reminder sent!")
 
 

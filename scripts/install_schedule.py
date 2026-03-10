@@ -169,13 +169,15 @@ def main():
     os.system(f"launchctl load {sync_path}")
     print(f"✅ Command sync (every 30 min) → {sync_path}")
 
-    # 3. Morning reminder at login/wake
+    # 3. Morning reminder — checks every 30 min + at login
     #    Sends a short Telegram ping so you see the newsletter on the bus.
-    #    RunAtLoad + idempotent (only sends if today’s newsletter exists).
+    #    The remind command has a 5 AM–2 PM guard, so it only actually sends
+    #    during morning hours. Outside that window it silently skips.
     rem_path = write_plist(
         REMINDER_LABEL,
         [python, main_py, "remind"],
         env,
+        interval_seconds=1800,  # 30 minutes — morning guard handles the rest
         run_at_load=True,
     )
     os.system(f"launchctl load {rem_path}")
