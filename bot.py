@@ -477,15 +477,18 @@ async def _fetch_feedback_async():
             # Handle callback queries (button presses)
             if update.callback_query:
                 data = update.callback_query.data
+                # Save feedback first — this always works
                 _process_callback_data(data)
-                # Answer the callback so Telegram stops showing a spinner
-                await update.callback_query.answer()
-                # Remove inline keyboard from the message
+                processed += 1
+                # Try to answer the callback and remove the keyboard (best-effort)
+                try:
+                    await update.callback_query.answer()
+                except Exception:
+                    pass  # query expired — feedback is already saved
                 try:
                     await update.callback_query.edit_message_reply_markup(reply_markup=None)
                 except Exception:
                     pass  # message might be too old to edit
-                processed += 1
             # Handle text commands (/add_interest, /add_topic, /config etc.)
             elif update.message and update.message.text:
                 text = update.message.text

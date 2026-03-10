@@ -157,14 +157,15 @@ def main():
     os.system(f"launchctl load {gen_path}")
     print(f"✅ Nightly generation (11 PM + retry at wake) → {gen_path}")
 
-    # 2. Periodic sync — fetches & processes Telegram commands every 30 min
-    #    Handles /add_interest, /add_topic, /config etc. and replies immediately-ish.
+    # 2. Periodic sync — fetches & processes Telegram commands every 5 min
+    #    Handles /add_interest, /add_topic, /config etc. and replies.
+    #    Also answers callback queries (reaction buttons) so users don't see a spinner.
     #    Single HTTP call, <1s, negligible battery.
     sync_path = write_plist(
         SYNC_LABEL,
         [python, main_py, "sync"],
         env,
-        interval_seconds=1800,  # 30 minutes
+        interval_seconds=300,  # 5 minutes
     )
     os.system(f"launchctl load {sync_path}")
     print(f"✅ Command sync (every 30 min) → {sync_path}")
