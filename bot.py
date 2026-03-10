@@ -504,7 +504,7 @@ def fetch_pending_feedback() -> int:
     return asyncio.run(_fetch_feedback_async())
 
 
-async def _send_reminder_async():
+async def _send_reminder_async(channel_username: str | None = None):
     """Send a short morning reminder to check the newsletter."""
     chat_id = get_chat_id()
     if not chat_id:
@@ -519,9 +519,17 @@ async def _send_reminder_async():
         f"<i>~7 min to get smarter on the commute</i>"
     )
     await bot.send_message(chat_id=chat_id, text=text, parse_mode=ParseMode.HTML)
+
+    if channel_username:
+        channel_id = f"@{channel_username.lstrip('@')}"
+        try:
+            await bot.send_message(chat_id=channel_id, text=text, parse_mode=ParseMode.HTML)
+        except Exception:
+            pass  # don't fail the whole reminder if channel post fails
+
     await bot.shutdown()
 
 
-def send_reminder():
+def send_reminder(channel_username: str | None = None):
     """Sync wrapper: send morning reminder."""
-    asyncio.run(_send_reminder_async())
+    asyncio.run(_send_reminder_async(channel_username))

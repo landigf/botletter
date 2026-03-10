@@ -360,7 +360,8 @@ def cmd_remind(args):
         return
 
     from bot import send_reminder
-    send_reminder()
+    channel = config.get("telegram", {}).get("channel_username")
+    send_reminder(channel_username=channel if channel else None)
     reminder_file.parent.mkdir(parents=True, exist_ok=True)
     reminder_file.write_text(date)
     print("☀️ Morning reminder sent!")
