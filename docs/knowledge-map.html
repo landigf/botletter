@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Botletter — Knowledge Map</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+
+<div class="nav"><a href="./">&larr; All issues</a></div>
+<div class="header">
+<h1>Knowledge Map</h1>
+<p class="subtitle">2 issues · 4 papers · 2 curiosity topics</p>
+</div>
+<p>Everything covered across all newsletters — curiosity topics, research papers,
+and thesis-related work. Click any date to read the full issue.</p>
+<input type="text" id="search" class="search-box" placeholder="Search topics and papers...">
+<div class="km-entry"><div class="km-date"><a href="issues/2026-03-10.html">March 10, 2026</a> <span class="weekday">Tuesday</span></div><ul class="km-items"><li><span class="km-tag">curiosity</span> TCP congestion control.</li><li><span class="km-tag">paper</span> Scaling Real-Time Traffic Analytics on Edge-Cloud Fabrics for City-Scale Camera Networks</li><li><span class="km-tag">thesis</span> Pre-AI Baseline: Developer IDE Satisfaction and Tool Autonomy in 2022</li></ul></div>
+<div class="km-entry"><div class="km-date"><a href="issues/2026-03-09.html">March 09, 2026</a> <span class="weekday">Monday</span></div><ul class="km-items"><li><span class="km-tag">curiosity</span> virtual memory</li><li><span class="km-tag">paper</span> LiveSense</li><li><span class="km-tag">thesis</span> MoEless: Efficient MoE LLM Serving via Serverless Computing</li></ul></div>
+
+<script>
+document.getElementById('search').addEventListener('input', function() {
+    var q = this.value.toLowerCase();
+    document.querySelectorAll('.km-entry').forEach(function(el) {
+        el.style.display = el.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+});
+</script>
+
+<div class="footer">
+    Botletter — an adaptive daily science newsletter by Gennaro Francesco Landi.<br>
+    Generated with <a href="https://github.com/landigf/botletter">Botletter</a>.
+    Powered by arXiv and Gemini.
+</div>
+</body>
+</html>

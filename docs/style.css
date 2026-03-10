@@ -88,3 +88,41 @@ strong { font-weight: 600; }
     color: var(--muted);
     font-size: 0.85rem;
 }
+.search-box {
+    width: 100%;
+    padding: 0.6rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--card-bg);
+    color: var(--fg);
+    font-size: 0.95rem;
+    margin-bottom: 1.5rem;
+    outline: none;
+}
+.search-box:focus { border-color: var(--accent); }
+.search-box::placeholder { color: var(--muted); }
+.issue-topics {
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-top: 0.2rem;
+    line-height: 1.4;
+}
+.km-entry {
+    padding: 0.8rem 0;
+    border-bottom: 1px solid var(--border);
+}
+.km-entry:last-child { border-bottom: none; }
+.km-date { font-weight: 600; margin-bottom: 0.3rem; }
+.km-date a { color: var(--fg); }
+.km-items { list-style: none; color: var(--muted); font-size: 0.9rem; }
+.km-items li { padding: 0.15rem 0; }
+.km-tag {
+    display: inline-block;
+    background: var(--section-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.1rem 0.5rem;
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-right: 0.3rem;
+}

@@ -28,12 +28,24 @@ an open-source pipeline anyone can fork and personalize.</p>
 Telegram channel</a> to receive each issue as it comes out.</p>
 </div>
 
+<div class="nav"><a href="knowledge-map.html">Knowledge Map</a></div>
 <h2>Issues</h2>
+<input type="text" id="search" class="search-box" placeholder="Filter by topic, paper, or date...">
 <ul class="issue-list">
-<li><a class="date" href="issues/2026-03-10.html">March 10, 2026</a><span class="weekday">Tuesday</span></li>
-<li><a class="date" href="issues/2026-03-09.html">March 09, 2026</a><span class="weekday">Monday</span></li>
+<li data-search="March 10, 2026 Tuesday TCP congestion control. Scaling Real-Time Traffic Analytics on Edge-Cloud Fabrics for City-Scale Camera Networks Pre-AI Baseline: Developer IDE Satisfaction and Tool Autonomy in 2022"><a class="date" href="issues/2026-03-10.html">March 10, 2026</a><span class="weekday">Tuesday</span><div class="issue-topics">💡 TCP congestion control. · 📄 Scaling Real-Time Traffic Analytics on Edge-Cloud Fabrics for City-Scale Camera Networks · 🎯 Pre-AI Baseline: Developer IDE Satisfaction and Tool Autonomy in 2022</div></li>
+<li data-search="March 09, 2026 Monday virtual memory LiveSense MoEless: Efficient MoE LLM Serving via Serverless Computing"><a class="date" href="issues/2026-03-09.html">March 09, 2026</a><span class="weekday">Monday</span><div class="issue-topics">💡 virtual memory · 📄 LiveSense · 🎯 MoEless: Efficient MoE LLM Serving via Serverless Computing</div></li>
 
 </ul>
+
+<script>
+document.getElementById('search').addEventListener('input', function() {
+    var q = this.value.toLowerCase();
+    document.querySelectorAll('.issue-list li').forEach(function(li) {
+        li.style.display = li.getAttribute('data-search').toLowerCase().includes(q) ? '' : 'none';
+    });
+});
+</script>
+
 
 <div class="footer">
     Botletter — an adaptive daily science newsletter by Gennaro Francesco Landi.<br>

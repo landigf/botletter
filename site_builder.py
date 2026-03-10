@@ -159,15 +159,54 @@ strong { font-weight: 600; }
     color: var(--muted);
     font-size: 0.85rem;
 }
+.search-box {
+    width: 100%;
+    padding: 0.6rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--card-bg);
+    color: var(--fg);
+    font-size: 0.95rem;
+    margin-bottom: 1.5rem;
+    outline: none;
+}
+.search-box:focus { border-color: var(--accent); }
+.search-box::placeholder { color: var(--muted); }
+.issue-topics {
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-top: 0.2rem;
+    line-height: 1.4;
+}
+.km-entry {
+    padding: 0.8rem 0;
+    border-bottom: 1px solid var(--border);
+}
+.km-entry:last-child { border-bottom: none; }
+.km-date { font-weight: 600; margin-bottom: 0.3rem; }
+.km-date a { color: var(--fg); }
+.km-items { list-style: none; color: var(--muted); font-size: 0.9rem; }
+.km-items li { padding: 0.15rem 0; }
+.km-tag {
+    display: inline-block;
+    background: var(--section-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.1rem 0.5rem;
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-right: 0.3rem;
+}
 """
 
 
-def _page_template(title: str, body: str, nav_back: bool = False) -> str:
+def _page_template(title: str, body: str, nav_back: bool = False, css_prefix: str = "") -> str:
     """Wrap content in a full HTML page."""
     nav = ''
     if nav_back:
         nav = '<div class="nav"><a href="../">&larr; All issues</a></div>'
 
+    css_path = f"{css_prefix}style.css"
     return f"""\
 <!DOCTYPE html>
 <html lang="en">
@@ -175,7 +214,7 @@ def _page_template(title: str, body: str, nav_back: bool = False) -> str:
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{html.escape(title)}</title>
-<link rel="stylesheet" href="{'../' if nav_back else ''}style.css">
+<link rel="stylesheet" href="{css_path}">
 </head>
 <body>
 {nav}
@@ -188,6 +227,35 @@ def _page_template(title: str, body: str, nav_back: bool = False) -> str:
 </body>
 </html>
 """
+
+
+def _extract_topics(md: str) -> dict[str, str]:
+    """Extract topic labels from a newsletter markdown."""
+    topics = {}
+    # Curiosity: first bold phrase in ## 💡 Deep Curiosity block
+    curiosity_block = re.search(r'## 💡 Deep Curiosity\n+(.+?)(?:\n---|$)', md, re.DOTALL)
+    if curiosity_block:
+        bold = re.search(r'\*\*(.+?)\*\*', curiosity_block.group(1))
+        if bold:
+            topics['curiosity'] = bold.group(1)
+
+    # Research paper: first quoted title in ## 📄 Research Spotlight
+    research_block = re.search(r'## 📄 Research Spotlight\n+(.+?)\n---', md, re.DOTALL)
+    if research_block:
+        txt = research_block.group(1)
+        quoted = re.search(r'["\u201c](.{3,}?)["\u201d]', txt)
+        if quoted:
+            topics['paper'] = quoted.group(1).rstrip('.,').strip()[:100]
+
+    # Thesis: first quoted title in ## 🎯 Your Research Corner
+    thesis_block = re.search(r'## 🎯 Your Research Corner\n+(.+?)(?:\n---|$)', md, re.DOTALL)
+    if thesis_block:
+        txt = thesis_block.group(1)
+        quoted = re.search(r'["\u201c](.{3,}?)["\u201d]', txt)
+        if quoted:
+            topics['thesis'] = quoted.group(1).rstrip('.,').strip()[:100]
+
+    return topics
 
 
 def build_site(channel_username: str | None = None):
@@ -206,8 +274,8 @@ def build_site(channel_username: str | None = None):
         print("No newsletters found in output/")
         return
 
-    # Build individual issue pages
-    issue_entries = []
+    # Build individual issue pages + extract topics
+    issue_entries = []  # (date_str, weekday, display_date, topics)
     for md_path in md_files:
         date_str = md_path.stem  # "2026-03-09"
         md_content = md_path.read_text()
@@ -220,14 +288,17 @@ def build_site(channel_username: str | None = None):
             weekday = ""
             display_date = date_str
 
+        topics = _extract_topics(md_content)
+
         body_html = _md_to_html(md_content)
         page = _page_template(
             f"Botletter — {display_date}",
             body_html,
             nav_back=True,
+            css_prefix="../",
         )
         (issues_dir / f"{date_str}.html").write_text(page)
-        issue_entries.append((date_str, weekday, display_date))
+        issue_entries.append((date_str, weekday, display_date, topics))
 
     # Build index page
     subscribe_html = ""
@@ -243,11 +314,35 @@ Telegram channel</a> to receive each issue as it comes out.</p>
 """
 
     issues_html = ""
-    for date_str, weekday, display_date in issue_entries:
+    for date_str, weekday, display_date, topics in issue_entries:
+        topic_parts = []
+        if 'curiosity' in topics:
+            topic_parts.append(f'💡 {html.escape(topics["curiosity"])}')
+        if 'paper' in topics:
+            topic_parts.append(f'📄 {html.escape(topics["paper"])}')
+        if 'thesis' in topics:
+            topic_parts.append(f'🎯 {html.escape(topics["thesis"])}')
+        topics_line = ''
+        if topic_parts:
+            topics_line = f'<div class="issue-topics">{" · ".join(topic_parts)}</div>'
+        search_text = html.escape(f"{display_date} {weekday} {' '.join(topics.values())}")
         issues_html += (
-            f'<li><a class="date" href="issues/{date_str}.html">{display_date}</a>'
-            f'<span class="weekday">{weekday}</span></li>\n'
+            f'<li data-search="{search_text}">'
+            f'<a class="date" href="issues/{date_str}.html">{display_date}</a>'
+            f'<span class="weekday">{weekday}</span>'
+            f'{topics_line}</li>\n'
         )
+
+    search_js = """
+<script>
+document.getElementById('search').addEventListener('input', function() {
+    var q = this.value.toLowerCase();
+    document.querySelectorAll('.issue-list li').forEach(function(li) {
+        li.style.display = li.getAttribute('data-search').toLowerCase().includes(q) ? '' : 'none';
+    });
+});
+</script>
+"""
 
     index_body = f"""
 <div class="header">
@@ -262,16 +357,74 @@ area — infrastructure under AI/agentic workloads.</p>
 <p>Built with <a href="https://github.com/landigf/botletter">Botletter</a>,
 an open-source pipeline anyone can fork and personalize.</p>
 {subscribe_html}
+<div class="nav"><a href="knowledge-map.html">Knowledge Map</a></div>
 <h2>Issues</h2>
+<input type="text" id="search" class="search-box" placeholder="Filter by topic, paper, or date...">
 <ul class="issue-list">
 {issues_html}
 </ul>
+{search_js}
 """
 
     index_page = _page_template("Botletter — Gennaro Francesco Landi", index_body)
     (DOCS_DIR / "index.html").write_text(index_page)
 
+    # Build knowledge map page
+    _build_knowledge_map(issue_entries)
+
     print(f"🌐 Site built: {len(issue_entries)} issue(s) → docs/")
+
+
+def _build_knowledge_map(issue_entries: list):
+    """Build a knowledge map page from issue topics."""
+    entries_html = ""
+    all_curiosity = set()
+    all_papers = []
+
+    for date_str, weekday, display_date, topics in issue_entries:
+        items = []
+        if 'curiosity' in topics:
+            items.append(f'<li><span class="km-tag">curiosity</span> {html.escape(topics["curiosity"])}</li>')
+            all_curiosity.add(topics['curiosity'])
+        if 'paper' in topics:
+            items.append(f'<li><span class="km-tag">paper</span> {html.escape(topics["paper"])}</li>')
+            all_papers.append((date_str, topics['paper']))
+        if 'thesis' in topics:
+            items.append(f'<li><span class="km-tag">thesis</span> {html.escape(topics["thesis"])}</li>')
+            all_papers.append((date_str, topics['thesis']))
+        if items:
+            entries_html += (
+                f'<div class="km-entry">'
+                f'<div class="km-date"><a href="issues/{date_str}.html">{display_date}</a>'
+                f' <span class="weekday">{weekday}</span></div>'
+                f'<ul class="km-items">{"".join(items)}</ul>'
+                f'</div>\n'
+            )
+
+    stats_html = f'{len(issue_entries)} issues · {len(all_papers)} papers · {len(all_curiosity)} curiosity topics'
+
+    body = f"""
+<div class="nav"><a href="./">&larr; All issues</a></div>
+<div class="header">
+<h1>Knowledge Map</h1>
+<p class="subtitle">{stats_html}</p>
+</div>
+<p>Everything covered across all newsletters — curiosity topics, research papers,
+and thesis-related work. Click any date to read the full issue.</p>
+<input type="text" id="search" class="search-box" placeholder="Search topics and papers...">
+{entries_html}
+<script>
+document.getElementById('search').addEventListener('input', function() {{
+    var q = this.value.toLowerCase();
+    document.querySelectorAll('.km-entry').forEach(function(el) {{
+        el.style.display = el.textContent.toLowerCase().includes(q) ? '' : 'none';
+    }});
+}});
+</script>
+"""
+
+    page = _page_template("Botletter — Knowledge Map", body)
+    (DOCS_DIR / "knowledge-map.html").write_text(page)
 
 
 if __name__ == "__main__":
