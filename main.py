@@ -79,23 +79,32 @@ def _newsletter_date() -> str:
 
 def cmd_generate(args):
     """Generate and optionally send the daily newsletter."""
+    print("[DEBUG] Starting newsletter generation...")
     config = load_config()
     date = args.date or _newsletter_date()
+    print(f"[DEBUG] Target date: {date}")
     output_dir = ROOT / config["output"]["directory"]
     filename = config["output"]["filename_format"].format(date=date)
     output_path = output_dir / filename
 
     from store import mark_sent, was_sent
 
-    # Idempotency: fully done (generated + sent) → skip
+    # Idempotency: fully done (generated + sent) → skip generation, but still
+    # rebuild/push the site so a previous GitHub Pages sync failure can recover.
     if output_path.exists() and was_sent(date) and not args.date:
-        print(f"📬 Newsletter for {date} already delivered. Skipping.")
+        if not args.no_publish:
+            print(f"📬 Newsletter for {date} already delivered. Syncing website...")
+            _publish_site(config)
+        else:
+            print(f"📬 Newsletter for {date} already delivered. Skipping.")
         return
 
     # Generated but not sent (e.g. no WiFi last night) → retry sending only
     if output_path.exists() and not was_sent(date) and not args.date:
         print(f"📝 Newsletter for {date} exists but wasn't sent. Retrying delivery...")
         _try_send(date, output_path, config, mark_sent)
+        if not args.no_publish:
+            _publish_site(config)
         return
 
     # Validate API key
@@ -116,15 +125,20 @@ def cmd_generate(args):
     if os.environ.get("TELEGRAM_BOT_TOKEN", ""):
         from bot import fetch_pending_feedback
         try:
+            print("[DEBUG] Syncing Telegram feedback...")
             n = fetch_pending_feedback()
             if n:
                 print(f"📥 Processed {n} feedback update(s) from Telegram")
+            else:
+                print("[DEBUG] Telegram feedback sync complete.")
         except Exception as e:
             print(f"⚠️  Could not fetch feedback: {e}")
 
     is_sunday = datetime.strptime(date, "%Y-%m-%d").weekday() == 6
 
+    print("[DEBUG] Loading history...")
     history = load_history()
+    print("[DEBUG] History loaded.")
     total_words = get_target_word_count(config)
     word_counts = get_section_word_counts(total_words, is_sunday)
 
@@ -137,7 +151,6 @@ def cmd_generate(args):
         print("📡 Fetching arXiv papers...")
         papers = fetch_papers(config, history.get("papers_seen", []))
         print(f"   {len(papers['research_papers'])} general + {len(papers['thesis_papers'])} thesis-related")
-
         if papers["research_papers"]:
             research_paper = papers["research_papers"][0]
         if papers["thesis_papers"]:
@@ -188,31 +201,42 @@ def cmd_generate(args):
             knowledge_entries.append("Weekly recap")
 
     # ── Save markdown ──
+    print("[DEBUG] Saving newsletter markdown...")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     newsletter_md = _assemble_markdown(date, sections, research_paper, thesis_paper)
     output_path.write_text(newsletter_md)
+    print("[DEBUG] Markdown saved.")
 
     # ── Update history ──
+    print("[DEBUG] Updating history...")
     history["themes_used"].append(theme)
     if research_paper:
         history["papers_seen"].append(research_paper["id"])
     if thesis_paper:
         history["papers_seen"].append(thesis_paper["id"])
     save_history(history)
+    print("[DEBUG] History updated.")
 
     # ── Update knowledge map ──
+    print("[DEBUG] Updating knowledge map...")
     append_to_knowledge_map(date, knowledge_entries)
     clear_more_requests()
+    print("[DEBUG] Knowledge map updated.")
 
     print(f"\n📝 Saved: {output_path}")
 
     # ── Send to Telegram ──
     if not args.no_send:
+        print("[DEBUG] Sending newsletter to Telegram...")
         _try_send(date, output_path, config, mark_sent)
+        print("[DEBUG] Newsletter sent.")
 
     # ── Publish to website ──
-    _publish_site(config)
+    if not args.no_publish:
+        print("[DEBUG] Publishing site...")
+        _publish_site(config)
+        print("[DEBUG] Site published.")
 
     print("Done!")
 
@@ -267,24 +291,42 @@ def _publish_site(config: dict):
 
     # Auto-commit and push docs/
     try:
+        branch_result = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=str(ROOT),
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        current_branch = branch_result.stdout.strip() or "master"
+
         subprocess.run(
             ["git", "add", "docs/"],
             cwd=str(ROOT), capture_output=True, check=True,
         )
         result = subprocess.run(
-            ["git", "diff", "--cached", "--quiet", "docs/"],
-            cwd=str(ROOT), capture_output=True,
+            ["git", "status", "--short", "--", "docs/"],
+            cwd=str(ROOT),
+            capture_output=True,
+            text=True,
+            check=True,
         )
-        if result.returncode == 0:
-            # No changes to commit
+        if not result.stdout.strip():
+            print("✅ Website already up to date")
             return
         subprocess.run(
-            ["git", "commit", "-m", "site: update newsletter archive"],
-            cwd=str(ROOT), capture_output=True, check=True,
+            ["git", "commit", "-m", "site: update newsletter archive", "--", "docs/"],
+            cwd=str(ROOT),
+            capture_output=True,
+            text=True,
+            check=True,
         )
         subprocess.run(
-            ["git", "push"],
-            cwd=str(ROOT), capture_output=True, check=True,
+            ["git", "push", "origin", f"HEAD:{current_branch}"],
+            cwd=str(ROOT),
+            capture_output=True,
+            text=True,
+            check=True,
         )
         print("🚀 Website updated and pushed to GitHub")
     except Exception as e:
@@ -446,6 +488,7 @@ def main():
     gen.add_argument("--date", help="Date (YYYY-MM-DD), default: today")
     gen.add_argument("--no-fetch", action="store_true", help="Skip arXiv, LLM-only")
     gen.add_argument("--no-send", action="store_true", help="Don't send to Telegram")
+    gen.add_argument("--no-publish", action="store_true", help="Don't rebuild/push the website")
     gen.set_defaults(func=cmd_generate)
 
     # remind
@@ -470,10 +513,6 @@ def main():
         sys.exit(1)
 
     args.func(args)
-
-
-if __name__ == "__main__":
-    main()
 
 
 if __name__ == "__main__":
